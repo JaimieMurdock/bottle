@@ -1,10 +1,12 @@
+#coding: utf-8
 import unittest
+
 import bottle
-from tools import tob
+from bottle import tob, touni
 
 class TestSecureCookies(unittest.TestCase):
     def setUp(self):
-        self.data = dict(a=5, b=u'unicode', c=[1,2,3,4,tob('bytestring')])
+        self.data = dict(a=5, b=touni('υηι¢σ∂є'), c=[1,2,3,4,tob('bytestring')])
         self.key = tob('secret')
 
     def testDeEncode(self):
@@ -21,7 +23,7 @@ class TestSecureCookies(unittest.TestCase):
 
 class TestSecureCookiesInBottle(unittest.TestCase):
     def setUp(self):
-        self.data = dict(a=5, b=u'unicode', c=[1,2,3,4,tob('bytestring')])
+        self.data = dict(a=5, b=touni('υηι¢σ∂є'), c=[1,2,3,4,tob('bytestring')])
         self.secret = tob('secret')
         bottle.app.push()
         bottle.response.bind()
@@ -30,7 +32,7 @@ class TestSecureCookiesInBottle(unittest.TestCase):
         bottle.app.pop()
 
     def get_pairs(self):
-        for k, v in bottle.response.wsgiheader():
+        for k, v in bottle.response.headerlist:
             if k == 'Set-Cookie':
                 key, value = v.split(';')[0].split('=', 1)
                 yield key.lower().strip(), value.strip()
@@ -52,7 +54,3 @@ class TestSecureCookiesInBottle(unittest.TestCase):
         self.set_pairs([(k+'xxx', v) for (k, v) in pairs])
         result = bottle.request.get_cookie('key', secret=self.secret)
         self.assertEqual(None, result)
-
-
-if __name__ == '__main__': #pragma: no cover
-    unittest.main()

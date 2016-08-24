@@ -1,13 +1,8 @@
 # -*- coding: utf-8 -*-
-import unittest
-import sys, os.path
+from __future__ import with_statement
 import bottle
-import urllib2
-from StringIO import StringIO
-import thread
-import time
-from tools import ServerTestBase
-from bottle import tob, touni, tonat
+from tools import ServerTestBase, chdir
+from bottle import tob
 
 class TestWsgi(ServerTestBase):
     ''' Tests for WSGI functionality, routing and output casting (decorators) '''
@@ -43,6 +38,27 @@ class TestWsgi(ServerTestBase):
         self.assertStatus(200, '/get', method='HEAD')
         self.assertBody('', '/get', method='HEAD')
 
+    def test_request_attrs(self):
+        """ WSGI: POST routes"""
+        @bottle.route('/')
+        def test():
+            self.assertEqual(bottle.request.app,
+                             bottle.default_app())
+            self.assertEqual(bottle.request.route,
+                             bottle.default_app().routes[0])
+            return 'foo'
+        self.assertBody('foo', '/')
+
+    def get204(self):
+        """ 204 responses must not return some entity headers """
+        bad = ('content-length', 'content-type')
+        for h in bad:
+            bottle.response.set_header(h, 'foo')
+        bottle.status = 204
+        for h, v in bottle.response.headerlist:
+            self.assertFalse(h.lower() in bad, "Header %s not deleted" % h)
+
+
     def get304(self):
         """ 304 responses must not return entity headers """
         bad = ('allow', 'content-encoding', 'content-language',
@@ -76,11 +92,27 @@ class TestWsgi(ServerTestBase):
         def test(): return 1/0
         self.assertStatus(500, '/')
 
+    def test_500_unicode(self):
+        @bottle.route('/')
+        def test(): raise Exception(touni('Unicode äöüß message.'))
+        self.assertStatus(500, '/')
+
     def test_utf8_url(self):
-        """ WSGI: Exceptions within handler code (HTTP 500) """
-        @bottle.route('/my/:string')
+        """ WSGI: UTF-8 Characters in the URL """
+        @bottle.route('/my-öäü/:string')
         def test(string): return string
-        self.assertBody(tob(u'urf8-öäü'), '/my/urf8-öäü')
+        self.assertBody(tob('urf8-öäü'), '/my-öäü/urf8-öäü')
+
+    def test_utf8_header(self):
+        header = 'öäü'
+        if bottle.py3k:
+            header = header.encode('utf8').decode('latin1')
+        @bottle.route('/test')
+        def test():
+            h = bottle.request.get_header('X-Test')
+            self.assertEqual(h, 'öäü')
+            bottle.response.set_header('X-Test', h)
+        self.assertHeader('X-Test', header, '/test', env={'HTTP_X_TEST': header})
 
     def test_utf8_404(self):
         self.assertStatus(404, '/not-found/urf8-öäü')
@@ -89,12 +121,12 @@ class TestWsgi(ServerTestBase):
         """ WSGI: abort(401, '') (HTTP 401) """
         @bottle.route('/')
         def test(): bottle.abort(401)
-        self.assertStatus(401,'/')
+        self.assertStatus(401, '/')
         @bottle.error(401)
         def err(e):
             bottle.response.status = 200
             return str(type(e))
-        self.assertStatus(200,'/')
+        self.assertStatus(200, '/')
         self.assertBody("<class 'bottle.HTTPError'>",'/')
 
     def test_303(self):
@@ -130,7 +162,6 @@ class TestWsgi(ServerTestBase):
         """ WSGI: Cookies """
         @bottle.route('/cookie')
         def test():
-            bottle.response.COOKIES['a']="a"
             bottle.response.set_cookie('b', 'b')
             bottle.response.set_cookie('c', 'c', path='/')
             return 'hello'
@@ -139,7 +170,6 @@ class TestWsgi(ServerTestBase):
         except:
             c = self.urlopen('/cookie')['header'].get('Set-Cookie', '').split(',')
             c = [x.strip() for x in c]
-        self.assertTrue('a=a' in c)
         self.assertTrue('b=b' in c)
         self.assertTrue('c=c; Path=/' in c)
 
@@ -229,10 +259,22 @@ class TestRouteDecorator(ServerTestBase):
         def hook():
             bottle.request.environ['hooktest'] = 'before'
         @bottle.hook('after_request')
-        def hook():
+        def hook(*args, **kwargs):
             bottle.response.headers['X-Hook'] = 'after'
         self.assertBody('before', '/test')
         self.assertHeader('X-Hook', 'after', '/test')
+
+    def test_environ_reflects_correct_response_after_request_in_hooks(self):
+        """ Issue #671  """
+
+        @bottle.hook('after_request')
+        def log_request_a():
+            self.assertStatus(400)
+            self.assertBody("test")
+
+        @bottle.get('/')
+        def _get():
+            bottle.abort(400, 'test')
 
     def test_template(self):
         @bottle.route(template='test {{a}} {{b}}')
@@ -240,14 +282,14 @@ class TestRouteDecorator(ServerTestBase):
         self.assertBody('test 5 6', '/test')
 
     def test_template_opts(self):
-        @bottle.route(template='test {{a}} {{b}}', template_opts={'b': 6})
+        @bottle.route(template=('test {{a}} {{b}}', {'b': 6}))
         def test(): return dict(a=5)
         self.assertBody('test 5 6', '/test')
 
     def test_name(self):
         @bottle.route(name='foo')
         def test(x=5): return 'ok'
-        self.assertEquals('/test/6', bottle.url('foo', x=6))
+        self.assertEqual('/test/6', bottle.url('foo', x=6))
 
     def test_callback(self):
         def test(x=5): return str(x)
@@ -264,13 +306,14 @@ class TestDecorators(ServerTestBase):
 
     def test_view(self):
         """ WSGI: Test view-decorator (should override autojson) """
-        @bottle.route('/tpl')
-        @bottle.view('stpl_t2main')
-        def test():
-            return dict(content='1234')
-        result = '+base+\n+main+\n!1234!\n+include+\n-main-\n+include+\n-base-\n'
-        self.assertHeader('Content-Type', 'text/html; charset=UTF-8', '/tpl')
-        self.assertBody(result, '/tpl')
+        with chdir(__file__):
+            @bottle.route('/tpl')
+            @bottle.view('stpl_t2main')
+            def test():
+                return dict(content='1234')
+            result = '+base+\n+main+\n!1234!\n+include+\n-main-\n+include+\n-base-\n'
+            self.assertHeader('Content-Type', 'text/html; charset=UTF-8', '/tpl')
+            self.assertBody(result, '/tpl')
 
     def test_view_error(self):
         """ WSGI: Test if view-decorator reacts on non-dict return values correctly."""
@@ -279,19 +322,8 @@ class TestDecorators(ServerTestBase):
         def test():
             return bottle.HTTPError(401, 'The cake is a lie!')
         self.assertInBody('The cake is a lie!', '/tpl')
-        self.assertInBody('401: Unauthorized', '/tpl')
+        self.assertInBody('401 Unauthorized', '/tpl')
         self.assertStatus(401, '/tpl')
-
-    def test_validate(self):
-        """ WSGI: Test validate-decorator"""
-        @bottle.route('/:var')
-        @bottle.route('/')
-        @bottle.validate(var=int)
-        def test(var): return 'x' * var
-        self.assertStatus(403,'/noint')
-        self.assertStatus(403,'/')
-        self.assertStatus(200,'/5')
-        self.assertBody('xxx', '/3')
 
     def test_truncate_body(self):
         """ WSGI: Some HTTP status codes must not be used with a response-body """
@@ -327,16 +359,24 @@ class TestDecorators(ServerTestBase):
         def d(x, y=5): pass
         def e(x=5, y=6): pass
         self.assertEqual(['/a'],list(bottle.yieldroutes(a)))
-        self.assertEqual(['/b/:x'],list(bottle.yieldroutes(b)))
-        self.assertEqual(['/c/:x/:y'],list(bottle.yieldroutes(c)))
-        self.assertEqual(['/d/:x','/d/:x/:y'],list(bottle.yieldroutes(d)))
-        self.assertEqual(['/e','/e/:x','/e/:x/:y'],list(bottle.yieldroutes(e)))
+        self.assertEqual(['/b/<x>'],list(bottle.yieldroutes(b)))
+        self.assertEqual(['/c/<x>/<y>'],list(bottle.yieldroutes(c)))
+        self.assertEqual(['/d/<x>','/d/<x>/<y>'],list(bottle.yieldroutes(d)))
+        self.assertEqual(['/e','/e/<x>','/e/<x>/<y>'],list(bottle.yieldroutes(e)))
 
 
 
 class TestAppShortcuts(ServerTestBase):
     def setUp(self):
         ServerTestBase.setUp(self)
+        
+    def testWithStatement(self):
+        default = bottle.default_app()
+        inner_app = bottle.Bottle()
+        self.assertEqual(default, bottle.default_app())
+        with inner_app:
+            self.assertEqual(inner_app, bottle.default_app())
+        self.assertEqual(default, bottle.default_app())
 
     def assertWraps(self, test, other):
         self.assertEqual(test.__doc__, other.__doc__)
@@ -350,10 +390,3 @@ class TestAppShortcuts(ServerTestBase):
 
     def test_module_shortcuts_with_different_name(self):
         self.assertWraps(bottle.url, bottle.app().get_url)
-
-
-
-
-
-if __name__ == '__main__': #pragma: no cover
-    unittest.main()

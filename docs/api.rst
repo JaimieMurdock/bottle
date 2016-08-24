@@ -49,6 +49,7 @@ Bottle maintains a stack of :class:`Bottle` instances (see :func:`app` and :clas
               post(...)
               put(...)
               delete(...)
+              patch(...)
 
    Decorator to install a route to the current default application. See :meth:`Bottle.route` for details.
 
@@ -98,22 +99,17 @@ Data Structures
 
       Return the current default application and remove it from the stack.
 
+.. autoclass:: ResourceManager
+   :members:
+
+.. autoclass:: FileUpload
+   :members:
 
 Exceptions
 ---------------
 
 .. autoexception:: BottleException
    :members:
-
-.. autoexception:: HTTPResponse
-   :members:
-
-.. autoexception:: HTTPError
-   :members:
-
-.. autoexception:: RouteReset
-   :members:
-
 
 
 
@@ -132,19 +128,19 @@ The :class:`Request` Object
 
 The :class:`Request` class wraps a WSGI environment and provides helpful methods to parse and access form data, cookies, file uploads and other metadata. Most of the attributes are read-only.
 
-You usually don't instantiate :class:`Request` yourself, but use the module-level :data:`bottle.request` instance. This instance is thread-local and refers to the `current` request, or in other words, the request that is currently processed by the request handler in the current context. `Thread locality` means that you can safely use a global instance in a multithreaded environment.
-
 .. autoclass:: Request
-   :members:
-
-.. autoclass:: LocalRequest
    :members:
 
 .. autoclass:: BaseRequest
    :members:
 
+The module-level :data:`bottle.request` is a proxy object (implemented in :class:`LocalRequest`) and always refers to the `current` request, or in other words, the request that is currently processed by the request handler in the current thread. This `thread locality` ensures that you can safely use a global instance in a multi-threaded environment.
+
+.. autoclass:: LocalRequest
+   :members:
 
 
+.. autodata:: request
 
 The :class:`Response` Object
 ===================================================
@@ -154,10 +150,19 @@ The :class:`Response` class stores the HTTP status code as well as headers and c
 .. autoclass:: Response
    :members:
 
+.. autoclass:: BaseResponse
+   :members:
+
 .. autoclass:: LocalResponse
    :members:
 
-.. autoclass:: BaseResponse
+
+The following two classes can be raised as an exception. The most noticeable difference is that bottle invokes error handlers for :class:`HTTPError`, but not for :class:`HTTPResponse` or other response types.
+
+.. autoexception:: HTTPResponse
+   :members:
+
+.. autoexception:: HTTPError
    :members:
 
 

@@ -8,10 +8,10 @@ class TestMultiDict(unittest.TestCase):
         d['key'], m['key'] = 'value', 'value'
         d['k2'], m['k2'] = 'v1', 'v1'
         d['k2'], m['k2'] = 'v2', 'v2'
-        self.assertEqual(d.keys(), m.keys())
-        self.assertEqual(d.values(), m.values())
-        self.assertEqual(list(d.iterkeys()), list(m.iterkeys()))
-        self.assertEqual(list(d.itervalues()), list(m.itervalues()))
+        self.assertEqual(list(d.keys()), list(m.keys()))
+        self.assertEqual(list(d.values()), list(m.values()))
+        self.assertEqual(list(d.keys()), list(m.iterkeys()))
+        self.assertEqual(list(d.values()), list(m.itervalues()))
         self.assertEqual(d.get('key'), m.get('key'))
         self.assertEqual(d.get('cay'), m.get('cay'))
         self.assertEqual(list(iter(d)), list(iter(m)))
@@ -45,9 +45,3 @@ class TestMultiDict(unittest.TestCase):
         d['lower'] = 'lower'
         self.assertEqual(d.get('upper'), 'UPPER')
         self.assertEqual(d.get('LOWER'), 'lower')
-
-
-   
-if __name__ == '__main__': #pragma: no cover
-    unittest.main()
-

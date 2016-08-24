@@ -9,7 +9,7 @@ This guide explains the plugin API and how to write custom plugins. I suggest re
 
 .. note::
 
-    This is a draft. If you see any errors or find that a specific part is not explained clear enough, please tell the `mailing-list <mailto:bottlepy@googlegroups.com>`_ or file a `bug report <https://github.com/defnull/bottle/issues>`_.
+    This is a draft. If you see any errors or find that a specific part is not explained clear enough, please tell the `mailing-list <mailto:bottlepy@googlegroups.com>`_ or file a `bug report <https://github.com/bottlepy/bottle/issues>`_.
 
 
 How Plugins Work: The Basics
@@ -17,13 +17,13 @@ How Plugins Work: The Basics
 
 The plugin API builds on the concept of `decorators <http://docs.python.org/glossary.html#term-decorator>`_. To put it briefly, a plugin is a decorator applied to every single route callback of an application.
 
-Of course, this is just a simplification. Plugins can do a lot more than just decorating route callbacks, but it is a good starting point. Lets have a look at some code::
+This is just a simplification. Plugins can do a lot more than just decorating route callbacks, but it is a good starting point. Lets have a look at some code::
 
     from bottle import response, install
     import time
 
     def stopwatch(callback):
-        def wrapper(*args, **kawrgs):
+        def wrapper(*args, **kwargs):
             start = time.time()
             body = callback(*args, **kwargs)
             end = time.time()
@@ -31,7 +31,7 @@ Of course, this is just a simplification. Plugins can do a lot more than just de
             return body
         return wrapper
 
-    bottle.install(stopwatch)
+    install(stopwatch)
 
 This plugin measures the execution time for each request and adds an appropriate ``X-Exec-Time`` header to the response. As you can see, the plugin returns a wrapper and the wrapper calls the original callback recursively. This is how decorators usually work.
 

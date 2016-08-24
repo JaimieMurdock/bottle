@@ -2,11 +2,12 @@
 *.pyo
 *.db
 *.log
+*.mo
 ._*
-.*
 *.*~
 dist/
 build/
 MANIFEST
 bottle.egg-info/
 .htmlcoverage/
+docs/_locale/_pot/.doctrees/

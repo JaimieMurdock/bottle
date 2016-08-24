@@ -5,10 +5,51 @@
 Release Notes and Changelog
 ===========================
 
-Release 0.10
-============
+Release 0.13
+==============
 
-Not released yet.
+.. warning: Not released yet.
+
+* Added :func:`patch` shortcut for `route(..., method='PATCH')`
+
+
+Release 0.12
+==============
+
+* New SimpleTemplate parser implementation
+
+  * Support for multi-line code blocks (`<% ... %>`).
+  * The keywords `include` and `rebase` are functions now and can accept variable template names.
+  
+* The new :meth:`BaseRequest.route` property returns the :class:`Route` that originally matched the request.
+* Removed the ``BaseRequest.MAX_PARAMS`` limit. The hash collision bug in CPythons dict() implementation was fixed over a year ago. If you are still using Python 2.5 in production, consider upgrading or at least make sure that you get security fixed from your distributor.
+* New :class:`ConfigDict` API (see :doc:`configuration`)
+
+More information can be found in this `development blog post <http://blog.bottlepy.org/2013/07/19/preview-bottle-012.html>`_.
+
+
+Release 0.11
+==============
+
+* Native support for Python 2.x and 3.x syntax. No need to run 2to3 anymore.
+* Support for partial downloads (``Range`` header) in :func:`static_file`.
+* The new :class:`ResourceManager` interface helps locating files bundled with an application.
+* Added a server adapter for `waitress <http://docs.pylonsproject.org/projects/waitress/en/latest/>`_.
+* New :meth:`Bottle.merge` method to install all routes from one application into another.
+* New :attr:`BaseRequest.app` property to get the application object that handles a request.
+* Added :meth:`FormsDict.decode()` to get an all-unicode version (needed by WTForms).
+* :class:`MultiDict` and subclasses are now pickle-able.
+
+.. rubric:: API Changes
+
+* :attr:`Response.status` is a read-write property that can be assigned either a numeric status code or a status string with a reason phrase (``200 OK``). The return value is now a string to better match existing APIs (WebOb, werkzeug). To be absolutely clear, you can use the read-only properties :attr:`BaseResponse.status_code` and :attr:`BaseResponse.status_line`.
+
+.. rubric:: API Deprecations
+
+* :class:`SimpleTALTemplate` is now deprecating. There seems to be no demand.
+
+Release 0.10
+==============
 
 * Plugin API v2
 
@@ -27,7 +68,12 @@ Not released yet.
   * Added three new functions to the SimpleTemplate default namespace that handle undefined variables: :func:`stpl.defined`, :func:`stpl.get` and :func:`stpl.setdefault`.
   * The default escape function for SimpleTemplate now additionally escapes single and double quotes.
 
-* Oher changes
+* Routing
+
+  * A new route syntax (e.g. ``/object/<id:int>``) and support for route wildcard filters.
+  * Four new wildcard filters: `int`, `float`, `path` and `re`.
+
+* Other changes
 
   * Added command line interface to load applications and start servers.
   * Introduced a :class:`ConfigDict` that makes accessing configuration a lot easier (attribute access and auto-expanding namespaces).
@@ -40,7 +86,7 @@ Not released yet.
 
 
 Release 0.9
-===========
+============
 
 .. rubric:: Whats new?
 
@@ -67,18 +113,10 @@ This release is mostly backward compatible, but some APIs are marked deprecated 
 * Type-based output filters are deprecated. They can easily be replaced with plugins.
 
 
-.. rubric:: Thanks to
-
-Thanks to all the people who found bugs, sent patches, spread the word, helped each other on the mailing-list and made this release possible. You are awesome :) Really, you are.
-
-I hope the following (alphabetically sorted) list is complete. If you miss your name on that list (or want your name removed) please :doc:`tell me <contact>`.
-
-    Adam R. Smith, Alexey Borzenkov, 'apheage', 'BillMa', Brandon Gilmore, Branko Vukelic, Damien Degois, David Buxton, Duane Johnson, Frank Murphy, Ian Davis, Itamar Nabriski, 'iurisilvio', Jeff Nichols, Jeremy Kelley, 'joegester', Jonas Haag, 'Karl', 'Kraken', Kyle Fritz, 'm35', 'masklinn', `reddit <http://reddit.com/r/python>`_, Santiago Gala, Sean M. Collins, 'Seth', Sigurd Høgsbro, Stuart Rackham, Sun Ning, Tomás A. Schertel, Tristan Zajonc, 'voltron' and Wieland Hoffmann
-
 Release 0.8
-===========
+============
 
-.. rubric:: API changes 
+.. rubric:: API changes
 
 These changes may break compatibility with previous versions.
 
@@ -93,16 +131,18 @@ These changes may break compatibility with previous versions.
 * The :class:`SimpleTemplate` engine returns unicode strings instead of lists of byte strings.
 * ``bottle.optimize()`` and the automatic route optimization is obsolete.
 * Some functions and attributes were renamed:
+
   * :attr:`Request._environ` is now :attr:`Request.environ`
   * :attr:`Response.header` is now :attr:`Response.headers`
   * :func:`default_app` is obsolete. Use :func:`app` instead.
+
 * The default :func:`redirect` code changed from 307 to 303.
 * Removed support for ``@default``. Use ``@error(404)`` instead.
 
 .. rubric:: New features
 
 
-This is an incomplete list of new features and improved functionality. 
+This is an incomplete list of new features and improved functionality.
 
 * The :class:`Request` object got new properties: :attr:`Request.body`, :attr:`Request.auth`, :attr:`Request.url`, :attr:`Request.header`, :attr:`Request.forms`, :attr:`Request.files`.
 * The :meth:`Response.set_cookie` and :meth:`Request.get_cookie` methods are now able to encode and decode python objects. This is called a *secure cookie* because the encoded values are signed and protected from changes on client side. All pickle-able data structures are allowed.
@@ -113,3 +153,10 @@ This is an incomplete list of new features and improved functionality.
 * The :class:`SimpleTemplate` engine got full unicode support.
 * Lots of non-critical bugfixes.
 
+
+
+============
+Contributors
+============
+
+.. include:: ../AUTHORS
