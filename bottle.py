@@ -820,6 +820,36 @@ class Bottle(object):
         else:
             return self._mount_wsgi(prefix, app, **options)
 
+    def _unmount_app(self, prefix, app, **options):
+        if app in self._mounts or '_mount.app' in app.config:
+            self._mounts.remove(app)
+            for route in self.routes:
+                if route.startswith(app.config['_mount.prefix']):
+                    self.routes.remove(route)
+            del app.config['_mount.prefix']
+            del app.config['_mount.app']
+            self.reset()
+        else:
+            raise RuntimeError("Application not in program")
+    
+    def unmount(self, prefix=None, app=None, **options):
+        if app is None and prefix is None:
+            raise ValueError("Must specify an app or a prefix")
+        elif prefix is None:
+            # find prefix for app
+            for mount in self._mounts:
+                if mount is app:
+                    prefix = app['_mount.prefix']
+                    break
+        elif app is None:
+            # find application for prefix
+            for mount in self._mounts:
+                if mount['_mount.prefix'] == prefix:
+                    app = mount
+                    break
+
+        self._unmount_app(prefix, app)
+
     def merge(self, routes):
         """ Merge the routes of another :class:`Bottle` application or a list of
             :class:`Route` objects into this application. The routes keep their
